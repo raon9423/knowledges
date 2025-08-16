@@ -107,6 +107,16 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(300px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(300px); }
+        }
+
         .question-card {
             background: white;
             border-radius: 15px;
@@ -442,6 +452,31 @@
             border-radius: 5px;
         }
 
+        .random-settings {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+        }
+
+        .random-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .random-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4facfe;
+            cursor: pointer;
+        }
+
         .format-info h3 {
             color: #1976d2;
             margin-bottom: 10px;
@@ -502,6 +537,15 @@
                         Chọn file TXT
                     </button>
                     <div id="fileInfo" class="file-info">Chưa chọn file nào</div>
+                    
+                    <!-- Random Settings -->
+                    <div class="random-settings">
+                        <label class="random-checkbox">
+                            <input type="checkbox" id="randomizeQuiz" checked>
+                            <span class="checkmark"></span>
+                            🎲 Random thứ tự câu hỏi và đáp án
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="format-info">
@@ -518,6 +562,7 @@ B. Đáp án B
 C. Đáp án C
 D. Đáp án D</div>
                     <p><strong>Lưu ý:</strong> Dấu "-" trước đáp án chỉ ra đáp án đúng</p>
+                    <p><strong>🎲 Tính năng Random:</strong> Thứ tự câu hỏi và đáp án sẽ được xáo trộn để tăng tính thú vị</p>
                 </div>
             </div>
 
@@ -745,12 +790,106 @@ Lưu ý: Dấu "-" trước đáp án chỉ ra đáp án đúng`);
                 this.userAnswers = new Array(this.questions.length).fill('');
                 this.correctAnswers = 0;
                 
+                // Check if randomization is enabled
+                const shouldRandomize = document.getElementById('randomizeQuiz').checked;
+                
+                if (shouldRandomize) {
+                    // Randomize question order
+                    this.shuffleQuestions();
+                    
+                    // Randomize options order for each question
+                    this.shuffleAllOptions();
+                    
+                    // Show notification
+                    this.showRandomNotification();
+                }
+                
                 document.getElementById('quizSection').style.display = 'block';
                 document.getElementById('resultsSection').style.display = 'none';
                 document.getElementById('submitBtn').style.display = 'inline-block';
                 
                 this.showQuestion();
                 this.updateNavigation();
+            }
+
+            showRandomNotification() {
+                // Create and show a temporary notification
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                    z-index: 1000;
+                    font-weight: bold;
+                    animation: slideIn 0.3s ease-out;
+                `;
+                notification.innerHTML = '🎲 Đã random thứ tự câu hỏi và đáp án!';
+                
+                document.body.appendChild(notification);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.style.animation = 'slideOut 0.3s ease-in';
+                        setTimeout(() => {
+                            document.body.removeChild(notification);
+                        }, 300);
+                    }
+                }, 3000);
+            }
+
+            shuffleQuestions() {
+                // Fisher-Yates shuffle algorithm for questions
+                for (let i = this.questions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.questions[i], this.questions[j]] = [this.questions[j], this.questions[i]];
+                }
+            }
+
+            shuffleAllOptions() {
+                // Shuffle options for each question
+                this.questions.forEach(question => {
+                    this.shuffleOptions(question);
+                });
+            }
+
+            shuffleOptions(question) {
+                // Get all option keys that have content
+                const optionKeys = ['A', 'B', 'C', 'D'].filter(key => question.options[key]);
+                
+                // Create array of options with their content and correct answer info
+                const optionsArray = optionKeys.map(key => ({
+                    key: key,
+                    text: question.options[key],
+                    isCorrect: key === question.correct
+                }));
+                
+                // Shuffle the options array
+                for (let i = optionsArray.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [optionsArray[i], optionsArray[j]] = [optionsArray[j], optionsArray[i]];
+                }
+                
+                // Reassign shuffled options to new keys A, B, C, D
+                const newOptions = {};
+                let newCorrectAnswer = 'A';
+                
+                optionsArray.forEach((option, index) => {
+                    const newKey = String.fromCharCode(65 + index); // A, B, C, D
+                    newOptions[newKey] = option.text;
+                    if (option.isCorrect) {
+                        newCorrectAnswer = newKey;
+                    }
+                });
+                
+                // Update question with shuffled options
+                question.options = newOptions;
+                question.correct = newCorrectAnswer;
             }
 
             showQuestion() {
